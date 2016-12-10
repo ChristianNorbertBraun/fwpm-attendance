@@ -1,0 +1,94 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/iron-icon/iron-icon.html">
+<link rel="import" href="/fwpm/bower_components/paper-card/paper-card.html">
+<link rel="import" href="/fwpm/bower_components/paper-tooltip/paper-tooltip.html">
+<link rel="import" href="/fwpm/custom-ajax.html">
+
+
+<dom-module id="attendance-detail">
+    <template>
+
+        <style>
+
+            #election-config-info {
+                width: 99%;
+                margin-left: 0.5em;
+                margin-right: 0.5em;
+                margin-top: 0.5em;
+            }
+
+            .election-details {
+                display: inline;
+                margin-left: 0.2em;
+            }
+
+            .help {
+                cursor: help;
+            }
+
+            #election-config-info .card-content {
+                margin-bottom: 0.5em;
+            }
+        </style>
+
+
+        <custom-ajax
+                auth
+                id="getElectionConfigData"
+                auto="[[selected]]"
+                url="{{electionConfigUrl}}"
+                handle-as="json"
+                last-response="{{electionConfigData}}">
+        </custom-ajax>
+
+
+        <paper-card id="election-config-info" heading="{{electionConfigData.title}}">
+            <div class="card-content">
+                <p class="election-details help" id="startDate"><iron-icon icon="alarm-on"></iron-icon> {{electionConfigData.startDate}}</p>
+                <p class="election-details help" id="endDate"><iron-icon icon="alarm-off"></iron-icon> {{electionConfigData.endDate}}</p>
+                <p class="election-details help" id="satisfaction"><iron-icon icon="favorite"></iron-icon> {{assignment.totalSatisfaction}} / {{assignment.totalMaxSatisfaction}} ({{computeSatisfactionPercentage(assignment)}}%)</p>
+                <p class="">
+                    <content></content>
+                </p>
+            </div>
+        </paper-card>
+
+        <paper-tooltip for="startDate" class="custom" position="right" animation-delay="0">
+            <div>Startdatum der aktuellen Wahl-Periode</div>
+        </paper-tooltip>
+        <paper-tooltip for="endDate" class="custom" position="right" animation-delay="0">
+            <div>Enddatum der aktuellen Wahl-Periode</div>
+        </paper-tooltip>
+        <paper-tooltip for="satisfaction" class="custom" position="right" animation-delay="0">
+            <div>aktuelle Zufriedenheitswert / max. möglicher Zufriedenheitswert (Zufriedenheit in %)</div>
+            <div>
+                1. Priorität -> 4 Punkte <br>
+                2. Priorität -> 3 Punkte <br>
+                3. Priorität -> 2 Punkte <br>
+                4. Priorität -> 1 Punkt <br>
+                Angenommen, ein Studierender gibt an, drei FWPMs belegen zu wollen. Vorausgesetzt es wurden auch drei Prioritäten angegeben ergibt sich ein maximaler Satisfaction-Wert von 4 + 3 + 2 = 9 für diesen Studierenden. Nach Ablauf der Wahl wird geprüft, welche FWPMs dem Studierenden tatsächlich zugeteilt wurden. Nehmen wir für unser Beispiel an, es wurden sogar vier Prioritäten gewählt und dem Studierenden seine erste, zweite und vierte Priorität zugeteilt. Der tatsächliche Satisfaction-Wert beträgt damit 4 + 3 + 1 = 8. Daraus ergibt sich eine Satisfaction-Diskrepanz von 9 - 8 = 1. Die Summe der Satisfaction-Diskrepanz aller Studierender gibt so Aufschluss über die Zufriedenheit der Studierenden mit dem Wahlausgang.
+            </div>
+        </paper-tooltip>
+
+    </template>
+
+    <script>
+        Polymer({
+            is: 'attendance-detail',
+            properties: {
+                electionConfigData: {
+                    type: Object
+                },
+                electionConfigUrl: {
+                    type: String
+                },
+                assignment: {
+                    type: Object
+                }
+            },
+            computeSatisfactionPercentage: function (assignment) {
+                return Math.floor(assignment.totalSatisfaction / assignment.totalMaxSatisfaction * 100);
+            }
+        });
+    </script>
+</dom-module>

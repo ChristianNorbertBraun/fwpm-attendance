@@ -1,0 +1,60 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/paper-card/paper-card.html">
+
+<dom-module id="fwpm-card">
+  <template>
+    <style>
+
+      paper-card {
+        margin-top: 1%;
+        width: 100%;
+      }
+
+      .red {
+        color: red;
+      }
+    </style>
+
+    <paper-card>
+      <div class="card-content">
+        <div><h2>[[fwpm.title]]</h2></div>
+        <a class="button-link" href="mailto:[[fwpm.responsibleTeacherEmail]]">
+          [[fwpm.responsibleTeacher]]
+        </a>
+        <div>Verfügbare Sitze: [[fwpm.numberOfSeats]]</div>
+        <div class="free-seats">Freie Sitze: [[freeSeats(fwpm.numberOfSeats, fwpm.participants.length)]]</div>
+      </div>
+      <div class="card-actions">
+        <content></content>
+      </div>
+    </paper-card>
+  </template>
+
+  <script>
+    Polymer({
+
+      is: 'fwpm-card',
+
+      properties: {
+        fwpm: {
+          type: Object
+        }
+      },
+
+      freeSeats: function(numberOfSeats, participatedStudents) {
+        var seats = numberOfSeats-participatedStudents;
+        return seats;
+      },
+
+      attached: function() {
+        var seats = this.freeSeats(this.fwpm.numberOfSeats, this.fwpm.participants.length);
+        var seatsCaption = document.querySelectorAll('.free-seats');
+        seatsCaption = seatsCaption[seatsCaption.length - 1];
+
+        if (seats < 0) {
+          seatsCaption.style.color = 'red'  
+        }
+      }
+    });
+  </script>
+</dom-module>

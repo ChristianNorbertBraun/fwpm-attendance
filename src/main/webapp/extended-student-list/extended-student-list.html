@@ -1,0 +1,64 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="/fwpm/bower_components/paper-input/paper-input.html">
+<link rel="import" href="/fwpm/custom-ajax.html">
+
+<link rel="import" href="../extended-student-card/extended-student-card.html">
+
+<dom-module id="extended-student-list">
+    <template>
+        <style>
+            :host  {
+                display: block;
+                padding: 1%;
+            }
+        </style>
+
+        <custom-ajax auth id="all" auto url="{{extendedStudentUrl}}" handle-as="json" last-response="{{students}}"></custom-ajax>
+
+        <paper-input value="{{searchString::input}}" label="Studentsuche">
+            <iron-icon icon="search" suffix></iron-icon>
+        </paper-input>
+
+        <div id="scrollable-student-list" style="overflow: auto;">
+            <template scroll-target="scrollable-student-list" is="dom-repeat" items="{{students}}" filter="{{computeFilter(searchString)}}">
+                <extended-student-card student="[[item]]"></extended-student-card>
+            </template>
+        </div>
+    </template>
+
+    <script>
+        Polymer({
+
+            is: 'extended-student-list',
+
+            properties: {
+                extendedStudentUrl: {
+                    type: String
+                },
+                students: {
+                    type: Array
+                }
+            },
+            attached:function() {
+              console.log(this.selected);
+                console.log(this.extendedStudentUrl);
+            },
+            computeFilter: function (query) {
+                if (!query) {
+                    // set filter to null to disable filtering
+                    return null;
+                } else {
+                    // return a filter function for the current search string
+                    query = query.toLowerCase();
+                    return function (item) {
+                        var kNr = item.kNummer.toLowerCase();
+                        var firstName = item.firstName.toLowerCase();
+                        var lastName = item.lastName.toLowerCase();
+                        return (kNr.indexOf(query) != -1 || firstName.indexOf(query) != -1 || lastName.indexOf(query) != -1);
+                    };
+                }
+            }
+        });
+    </script>
+</dom-module>

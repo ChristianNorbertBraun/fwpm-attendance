@@ -1,0 +1,185 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="/fwpm/bower_components/paper-input/paper-input.html">
+<link rel="import" href="/fwpm/bower_components/paper-button/paper-button.html">
+<link rel="import" href="/fwpm/bower_components/paper-toast/paper-toast.html">
+<link rel="import" href="/fwpm/bower_components/iron-selector/iron-selector.html">
+<link rel="import" href="/fwpm/custom-ajax.html">
+<link rel="import" href="../fwpm-card/fwpm-card.html">
+<link rel="import" href="../hardships-handler/hardships-handler.html">
+
+
+<dom-module id="fwpm-list">
+    <template>
+        <style>
+            :host  {
+                display: block;
+                padding: 1%;
+            }
+
+            paper-button.add {
+                margin-bottom: 4px;
+                background: #5cb85c;
+                color: white;
+            }
+
+            paper-button.contact {
+                background: #337ab7;
+                color: white;
+                margin: 10px;
+            }
+
+            .iron-selected {
+                background: #FF6633;
+                padding: 1%;
+                elevation: above;
+            }
+
+            #errorToast {
+                --paper-toast-background-color: red;
+                --paper-toast-color: white;
+            }
+
+            .pullright {
+                float: right;
+            }
+
+            .button-link {
+                text-decoration: none;
+            }
+        </style>
+
+        <custom-ajax
+                auth
+                id="ajax"
+                method="GET"
+                content-type="text/plain"
+                handle-as="text"
+                last-response="{{csvFile}}"
+                on-error="errorResponse"
+                on-response="successResponse"
+                debounce-duration="300">
+        </custom-ajax>
+
+        <paper-input value="{{searchString::input}}" label="FWPM Suche">
+            <iron-icon icon="search" suffix></iron-icon>
+        </paper-input>
+
+        <div id="scrollable-fwpm-list" style="overflow: auto;">
+            <iron-selector id="selector" attr-for-selected="fwpmid" >
+                <template scroll-target="scrollable-fwpm-list" is="dom-repeat" items="{{fwpms}}" filter="{{computeFilter(searchString)}}">
+                    <template is="dom-if" if="[[isHardship(item.id)]]">
+                        <hardships-handler assignment-id="{{assignmentId}}" solve-hardship-url="{{solveHardshipUrl}}"
+                                           ballot-url="{{ballotUrl}}"
+                                           fwpm="[[item]]" id="studentHardship" on-reload-fpwms="reload"></hardships-handler>
+                    </template>
+
+                    <template is="dom-if" if="[[!isHardship(item.id)]]">
+                        <div fwpmid="{{item.id}}">
+                            <fwpm-card on-click="fwpmsel" fwpm="[[item]]">
+                                <div class="pullright">
+                                    <paper-button on-click="csvExport" class="add">
+                                        <iron-icon icon="file-download" class="button-icon"></iron-icon>
+                                        CSV Export
+                                    </paper-button>
+                                </div>
+                            </fwpm-card>
+                        </div>
+                    </template>
+                </template>
+            </iron-selector>
+        </div>
+
+        <paper-toast id="errorToast" duration="5000" text="Das gewünschte CSV konnte nicht exportiert werden."></paper-toast>
+
+    </template>
+
+    <script>
+        Polymer({
+
+            is: 'fwpm-list',
+
+            properties: {
+                csvUrl: {
+                    type: String
+                },
+                ballotUrl: {
+                    type: String
+                },
+                solveHardshipUrl: {
+                    type: String
+                },
+                assignmentId: {
+                    type: Number
+                },
+                fwpms: {
+                    type: Array,
+                    value: []
+                },
+                csvFile: {
+                    type: Object
+                }
+            },
+            fwpmsel: function (e) {
+                this.fire("fwpm-selected", e.model.item);
+            },
+            computeFilter: function (query) {
+                if (!query) {
+                    return null;
+                } else {
+                    query = query.toLowerCase();
+                    return function (item) {
+                        var moduleNumber = item.moduleNumber.toString().toLowerCase();
+                        var title = item.title.toLowerCase();
+                        return (title.indexOf(query) != -1 || moduleNumber.indexOf(query) != -1);
+                    };
+                }
+            },
+            csvExport: function (e) {
+                var assignmentId = this.assignmentId;
+                var fwpmId = e.model.item.id;
+                this.$.ajax.url = this.csvUrl.replace("{assignmentId}", assignmentId).replace("{fwpmId}", fwpmId);
+                this.$.ajax.generateRequest();
+            },
+            download: function (content, fileName, mimeType) {
+                var a = document.createElement('a');
+                mimeType = mimeType || 'application/octet-stream';
+
+                if (navigator.msSaveBlob) { // IE10
+                    return navigator.msSaveBlob(new Blob([content], {type: mimeType}), fileName);
+                } else if ('download' in a) { //html5 A[download]
+                    a.href = 'data:' + mimeType + ',' + encodeURIComponent(content);
+                    a.setAttribute('download', fileName);
+                    document.body.appendChild(a);
+                    setTimeout(function () {
+                        a.click();
+                        document.body.removeChild(a);
+                    }, 66);
+                    return true;
+                } else { //do iframe dataURL download (old ch+FF):
+                    var f = document.createElement('iframe');
+                    document.body.appendChild(f);
+                    f.src = 'data:' + mimeType + ',' + encodeURIComponent(content);
+
+                    setTimeout(function () {
+                        document.body.removeChild(f);
+                    }, 333);
+                    return true;
+                }
+            },
+            errorResponse: function (e, error) {
+                this.$.errorToast.open();
+            },
+            successResponse: function (e, request) {
+                var fileName = request.xhr.getResponseHeader('Content-disposition').toString().replace("filename=", "").split(" ")[1];
+                this.download(this.csvFile, fileName, 'text/csv');
+            },
+            isHardship: function (id) {
+                return id == 0;
+            },
+            reload: function () {
+                this.fire("reload-fpwms");
+            }
+        });
+    </script>
+</dom-module>

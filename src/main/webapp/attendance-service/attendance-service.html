@@ -1,0 +1,304 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/paper-button/paper-button.html">
+<link rel="import" href="/fwpm/bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="/fwpm/bower_components/iron-icon/iron-icon.html">
+<link rel="import" href="/fwpm/bower_components/paper-toast/paper-toast.html">
+<link rel="import" href="/fwpm/bower_components/paper-card/paper-card.html">
+<link rel="import" href="/fwpm/custom-ajax.html">
+
+<link rel="import" href="../fwpm-list/fwpm-list.html">
+<link rel="import" href="../student-list/student-list.html">
+<link rel="import" href="../extended-student-list/extended-student-list.html">
+<link rel="import" href="../add-student/add-student.html">
+<link rel="import" href="../attendance-detail/attendance-detail.html">
+
+<dom-module id="attendance-service">
+    <template>
+
+        <style>
+            #fwpm-list {
+                width: 50%;
+                float: left;
+            }
+
+            #student-list {
+                width: 50%;
+                float: right;
+            }
+
+            .clearfix {
+                clear: both;
+            }
+
+            #settings-bar {
+                width: 100%;
+                height: 5%;
+            }
+
+            .settings-buttons {
+                float: right;
+            }
+
+            paper-button.add {
+                background: #5cb85c;
+                color: white;
+                margin: 10px;
+                float: right;
+            }
+
+            paper-button.switch {
+                background: #337ab7;
+                color: white;
+                margin: 10px;
+                float: right;
+            }
+
+            .errorToast {
+                --paper-toast-background-color: red;
+                --paper-toast-color: white;
+            }
+        </style>
+        <custom-ajax auth id="all" auto="[[selected]]" url="{{url}}{{assignmentToShow}}" handle-as="json" last-response="{{assignment}}"></custom-ajax>
+
+        <custom-ajax auth id="publishLecturerAjax" on-response="successfulPublish" on-error="errorPublish"></custom-ajax>
+
+        <custom-ajax auth id="publishStudentAjax" on-response="successfulPublish" on-error="errorPublish"></custom-ajax>
+
+        <custom-ajax
+                auth
+                id="addStudentAjax"
+                method="PUT"
+                url="{{addStudentUrl}}"
+                content-type="application/json"
+                handle-as="json"
+                on-response="successfulResponse"
+                on-error="errorResponse"
+                debounce-duration="300">
+        </custom-ajax>
+
+
+        <custom-ajax
+                auth
+                id="csvDownload"
+                method="GET"
+                content-type="text/plain"
+                handle-as="text"
+                last-response="{{csvFile}}"
+                on-error="errorCSVResponse"
+                on-response="successResponse"
+                debounce-duration="300">
+        </custom-ajax>
+
+        <attendance-detail selected="true" assignment="{{assignment}}" election-config-url="{{electionConfigUrl}}{{assignmentToShow}}">
+            <paper-button on-click="publishLecturer" class="add election-details">
+                <iron-icon icon="mail" class="button-icon"></iron-icon>
+                Mail an Dozenten versenden
+            </paper-button>
+            <paper-button on-click="publishStudent" class="add election-details">
+                <iron-icon icon="mail" class="button-icon"></iron-icon>
+                Mail an Studenten versenden
+            </paper-button>
+            <paper-button on-click="togglePage" class="switch election-details">
+                <iron-icon icon="compare-arrows" class="button-icon"></iron-icon>
+                Ansicht wechseln
+            </paper-button>
+            <paper-button on-click="csvExport" class="add election-details">
+                <iron-icon icon="file-download" class="button-icon"></iron-icon>
+                CSV-Download
+            </paper-button>
+        </attendance-detail>
+        <div hidden="{{!displayFWPM}}">
+            <div>
+                <div id="fwpm-list">
+                    <fwpm-list ballot-url="{{ballotUrl}}" csv-url="{{csvUrl}}" solve-hardship-url="{{solveHardshipUrl}}"
+                               assignment-id="{{assignment.id}}" fwpms="{{assignment.fwpms}}" on-fwpm-selected="getFWPM"
+                               on-reload-fpwms="reload"></fwpm-list>
+                </div>
+                <div id="student-list">
+                    <student-list remove-student-url="{{removeStudentUrl}}" assignment-id="{{assignment.id}}" fwpm-id="{{currentFwpm.id}}" students="{{currentFwpm.participants}}"
+                                  on-student-deleted="reload"></student-list>
+                </div>
+            </div>
+
+            <div id="settings-bar" class="clearfix">
+                <div class="settings-buttons">
+                    <template is="dom-if" if="{{currentFwpm}}">
+                        <add-student student-find-url="{{studentFindUrl}}" on-add-new-student="addStudent"></add-student>
+                    </template>
+                </div>
+            </div>
+        </div>
+        <div hidden="{{displayFWPM}}">
+          <extended-student-list selected="true" extended-student-url="{{modifiedExtendedStudentUrl}}"></extended-student-list>
+        </div>
+
+
+        <paper-toast class="errorToast" id="addStudentErrorToast" duration="5000"
+                     text="Es ist ein Fehler aufgetreten. Der Student konnte nicht hinzugefügt werden."></paper-toast>
+        <paper-toast class="errorToast" id="hardshipsErrorToast" duration="5000"
+                     text="Die Mails konnte nicht versendet werden, da es noch Härtefälle gibt."></paper-toast>
+        <paper-toast class="successToast" id="publishToast" duration="5000" text="Die Mails wurden erfolgreich versendet."></paper-toast>
+
+        <paper-toast id="errorCSVToast" duration="5000" text="Das gewünschte CSV konnte nicht exportiert werden."></paper-toast>
+
+    </template>
+
+    <script>
+        Polymer({
+            is: 'attendance-service',
+            properties: {
+                displayFWPM: {
+                    type: Boolean,
+                    value: true
+                },
+                url: {
+                    type: String
+                },
+                extendedStudentUrl: {
+                    type: String
+                 },
+                modifiedExtendedStudentUrl: {
+                    type: String
+                },
+                extendedStudentCsvUrl : {
+                    type: String
+                },
+                modifiedExtendedStudentCsvUrl : {
+                    type: String
+                },
+                removeStudentUrl: {
+                    type: String
+                },
+                addStudentUrl: {
+                    type: String
+                },
+                solveHardshipUrl: {
+                    type: String
+                },
+                csvUrl: {
+                    type: String
+                },
+                ballotUrl: {
+                    type: String
+                },
+                publishUrlLecturer: {
+                    type: String
+                },
+                publishUrlStudent: {
+                    type: String
+                },
+                studentFindUrl: {
+                    type: String
+                },
+                currentFwpm: {
+                    type: Object
+                },
+                assignment: {
+                    type: Object,
+                    observer: 'updateUrls'
+                },
+                studentToAdd: {
+                    type: Object
+                },
+                assignmentToShow: {
+                    type: Number
+                },
+                electionConfigUrl: {
+                    type: String
+                },
+                csvFile: {
+                    type: Object
+                }
+            },
+
+            updateUrls: function() {
+                this.updateExtendedStudentCsvUrl();
+                this.updateExtendedStudentUrl()
+            },
+            updateExtendedStudentUrl: function() {
+              this.modifiedExtendedStudentUrl = this.extendedStudentUrl.replace("{assignmentId}", this.assignment.id); 
+            },
+
+            updateExtendedStudentCsvUrl: function() {
+                this.modifiedExtendedStudentCsvUrl = this.extendedStudentCsvUrl.replace("{assignmentId}", this.assignment.id);
+            },
+            getFWPM: function (event, selectedFWPM) {
+                this.currentFwpm = selectedFWPM;
+            },
+            addStudent: function (event, student) {
+                this.studentToAdd = student;
+                this.addStudentUrl = this.addStudentUrl.replace("{assignmentId}", this.assignment.id).replace("{fwpmId}", this.currentFwpm.id);
+                this.$.addStudentAjax.body = JSON.stringify(this.studentToAdd);
+                this.$.addStudentAjax.generateRequest();
+            },
+            successfulResponse: function (e, response) {
+                this.push('currentFwpm.participants', this.studentToAdd);
+                this.studentToAdd = undefined;
+                this.reload();
+            },
+            errorResponse: function (e, error) {
+                this.$.addStudentErrorToast.open();
+                this.studentToAdd = undefined;
+            },
+            reload: function () {
+                this.$.all.generateRequest();
+            },
+            publishLecturer: function () {
+                this.publishUrlLecturer = this.publishUrlLecturer.replace("{assignmentId}", this.assignment.id);
+                this.$.publishLecturerAjax.url = this.publishUrlLecturer;
+                this.$.publishLecturerAjax.generateRequest();
+            },
+            publishStudent: function () {
+                this.publishUrlStudent = this.publishUrlStudent.replace("{assignmentId}", this.assignment.id);
+                this.$.publishStudentAjax.url = this.publishUrlStudent;
+                this.$.publishStudentAjax.generateRequest();
+            },
+            errorPublish: function () {
+                this.$.hardshipsErrorToast.open();
+            },
+            successfulPublish: function () {
+                this.$.publishToast.open();
+            },
+            togglePage: function () {
+                this.displayFWPM = !this.displayFWPM;
+            },
+            csvExport: function (e) {
+                this.$.csvDownload.url = this.modifiedExtendedStudentCsvUrl;
+                this.$.csvDownload.generateRequest();
+            },
+            download: function (content, fileName, mimeType) {
+                var a = document.createElement('a');
+                mimeType = mimeType || 'application/octet-stream';
+
+                if (navigator.msSaveBlob) { // IE10
+                    return navigator.msSaveBlob(new Blob([content], {type: mimeType}), fileName);
+                } else if ('download' in a) { //html5 A[download]
+                    a.href = 'data:' + mimeType + ',' + encodeURIComponent(content);
+                    a.setAttribute('download', fileName);
+                    document.body.appendChild(a);
+                    setTimeout(function () {
+                        a.click();
+                        document.body.removeChild(a);
+                    }, 66);
+                    return true;
+                } else { //do iframe dataURL download (old ch+FF):
+                    var f = document.createElement('iframe');
+                    document.body.appendChild(f);
+                    f.src = 'data:' + mimeType + ',' + encodeURIComponent(content);
+
+                    setTimeout(function () {
+                        document.body.removeChild(f);
+                    }, 333);
+                    return true;
+                }
+            },
+            errorCSVResponse: function (e, error) {
+                this.$.errorCSVToast.open();
+            },
+            successResponse: function (e, request) {
+                var fileName = request.xhr.getResponseHeader('Content-disposition').toString().replace("filename=", "").split(" ")[1];
+                this.download(this.csvFile, fileName, 'text/csv');
+            }
+        });
+    </script>
+</dom-module>

@@ -1,0 +1,6 @@
+/target
+/.idea
+*.iml
+/src/main/webapp/bower_components
+/src/main/webapp/demo
+/src/main/webapp/test

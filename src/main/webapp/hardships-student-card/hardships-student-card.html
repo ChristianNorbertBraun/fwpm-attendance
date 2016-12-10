@@ -1,0 +1,181 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/paper-card/paper-card.html">
+<link rel="import" href="/fwpm/bower_components/iron-collapse/iron-collapse.html">
+<link rel="import" href="/fwpm/bower_components/paper-button/paper-button.html">
+<link rel="import" href="/fwpm/bower_components/iron-icons/iron-icons.html">
+
+<link rel="import" href="/fwpm/custom-ajax.html">
+
+<dom-module id="hardships-student-card">
+    <template>
+        <style>
+            paper-card {
+                margin: 1%;
+                min-width: 23%;
+            }
+
+            paper-button.add {
+                background: #5cb85c;
+                color: white;
+                margin: 10px;
+            }
+
+            .clearfix {
+                clear: both;
+            }
+
+            .pull-right {
+                float: right;
+            }
+
+            .pull-left {
+                float: left;
+            }
+
+            .errorToast {
+                --paper-toast-background-color: red;
+                --paper-toast-color: white;
+            }
+        </style>
+
+        <custom-ajax
+                auth
+                id="solveAjax"
+                method="PUT"
+                url="{{solveHardshipUrl}}"
+                content-type="application/json"
+                handle-as="json"
+                on-response="successfulResponse"
+                on-error="errorResponse"
+                debounce-duration="300">
+        </custom-ajax>
+
+        <paper-card heading="[[student.studentNumber]]">
+            <div class="card-content">
+                <div>
+                    <div hidden$="[[extrasShown]]" class="pull-right" on-click="toggleExtras">
+                        <iron-icon icon="arrow-drop-down"></iron-icon>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+                <div hidden$="[[detailsHidden]]">
+                    <iron-collapse id="collapse">
+                        <div>
+                            <div>[[student.firstName]] [[student.lastName]]</div>
+                            <div><a href="mailto:[[student.email]]">[[student.email]]</a></div>
+                            <div>Studiengang: [[student.major]] Semester: [[student.semester]]</div>
+                            <div>Anzahl der gewünschten FWPMs: [[student.requiredFwpms]]</div>
+                            <br>
+                            <template is="dom-repeat" items="[[student.choices]]">
+                                <div>
+                                    <div class="pull-left"><b>Prio:[[item.priority]]<br>[[item.name]]</b></div>
+                                    <div class="pull-right">
+                                        <paper-button on-click="add" class="add">
+                                            <iron-icon icon="add" class="button-icon"></iron-icon>
+                                            Hinzufügen
+                                        </paper-button>
+                                    </div>
+                                </div>
+                                <div class="clearfix"></div>
+                            </template>
+                            <div>
+                                <paper-button on-click="save" class="add">
+                                    <iron-icon icon="save" class="button-icon"></iron-icon>
+                                    Speichern
+                                </paper-button>
+                            </div>
+                        </div>
+                    </iron-collapse>
+                    <div hidden$="[[!extrasShown]]" class="pull-right" on-click="toggleExtras">
+                        <iron-icon icon="arrow-drop-up"></iron-icon>
+                    </div>
+                    <div class="clearfix"></div>
+                </div>
+            </div>
+        </paper-card>
+
+
+        <paper-toast class="errorToast" id="errorToast" duration="5000"
+                     text="Es ist ein Fehler aufgetreten. Der Student konnte nicht hinzugefügt werden."></paper-toast>
+
+    </template>
+
+    <script>
+        Polymer({
+
+            is: 'hardships-student-card',
+
+            properties: {
+                solveHardshipUrl: {
+                    type: String
+                },
+                assignmentId: {
+                    type: Number
+                },
+                student: {
+                    type: Object,
+                    value: {
+                        "choices": [],
+                        "email": "",
+                        "firstName": "",
+                        "lastName": "",
+                        "major": "",
+                        "requiredFwpms": 0,
+                        "semester": 0,
+                        "studentNumber": ""
+                    }
+                },
+                hardship: {
+                    type: Object
+                },
+                extrasShown: {
+                    type: Boolean,
+                    value: false
+                },
+
+                detailsHidden: {
+                    type: Boolean,
+                    value: false
+                }
+            },
+
+            ready: function () {
+                this.hardship = {};
+                this.hardship.student = {};
+                this.hardship.fwpmIds = [];
+            },
+
+            toggleExtras: function (e) {
+                if (this.detailsHidden) return;
+
+                this.$.collapse.toggle();
+                this.extrasShown = !this.extrasShown;
+            },
+            add: function (e) {
+                this.hardship.assignmentId = this.assignmentId;
+                this.hardship.student.kNummer = this.student.studentNumber;
+                this.hardship.student.firstName = this.student.firstName;
+                this.hardship.student.lastName = this.student.lastName;
+                this.hardship.student.major = this.student.major;
+                this.hardship.student.semester = this.student.semester;
+                this.hardship.student.eMail = this.student.email;
+                this.push('hardship.fwpmIds', e.model.item.fwpmId);
+                this.splice('student.choices', e.model.index, 1);
+
+            },
+            save: function () {
+                if (this.hardship.fwpmIds.length > 0) {
+                    this.$.solveAjax.body = JSON.stringify(this.hardship);
+                    this.$.solveAjax.generateRequest();
+                }
+            },
+
+            successfulResponse: function (e, response) {
+                this.fire("solved-hardship");
+            },
+            errorResponse: function (e, error) {
+                this.$.errorToast.open();
+            }
+        });
+    </script>
+</dom-module>

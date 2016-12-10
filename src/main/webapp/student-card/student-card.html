@@ -1,0 +1,46 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/paper-card/paper-card.html">
+<link rel="import" href="/fwpm/bower_components/iron-collapse/iron-collapse.html">
+
+
+<dom-module id="student-card">
+  <template>
+    <style>
+      paper-card {
+        margin-top: 1%;
+        width: 100%;
+      }
+      small {
+        font-size: smaller;
+      }
+    </style>
+
+    <paper-card>
+      <div class="card-content">
+        <div><h2>[[student.firstName]] [[student.lastName]]<br />
+          <small>[[student.kNummer]]</small></h2></div>
+        <div><a href="mailto:[[student.eMail]]">[[student.eMail]]</a></div>
+        <div>Semester: [[student.semester]]</div>
+        <div>Studiengang: [[student.major]]</div>
+      </div>
+      <div class="card-actions">
+        <content></content>
+      </div>
+    </paper-card>
+
+  </template>
+
+  <script>
+    Polymer({
+
+      is: 'student-card',
+
+      properties: {
+        student: {
+          type: Object,
+          value: {"eMail": "", "firstName": "", "kNummer": "", "lastName": "", "major": "", "semester": -1}
+        }
+      }
+    });
+  </script>
+</dom-module>

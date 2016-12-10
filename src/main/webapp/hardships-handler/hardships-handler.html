@@ -1,0 +1,129 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/paper-button/paper-button.html">
+<link rel="import" href="/fwpm/bower_components/paper-dialog/paper-dialog.html">
+<link rel="import" href="/fwpm/bower_components/paper-dialog-scrollable/paper-dialog-scrollable.html">
+<link rel="import" href="/fwpm/bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="/fwpm/bower_components/paper-input/paper-input.html">
+<link rel="import" href="/fwpm/custom-ajax.html">
+
+<link rel="import" href="../hardships-card/hardships-card.html">
+<link rel="import" href="../hardships-student-card/hardships-student-card.html">
+
+<dom-module id="hardships-handler">
+    <style>
+
+        paper-dialog {
+            width: 60%;
+        }
+        paper-button.add {
+            background: #337ab7;
+            color: white;
+            margin: 10px;
+        }
+        .errorToast {
+            --paper-toast-background-color: red;
+            --paper-toast-color: white;
+        }
+
+    </style>
+    <template>
+
+        <template is="dom-repeat" items="{{fwpm.participants}}">
+            <custom-ajax auth auto="[[isDialogOpen]]" url="{{_computeBallotUrl(item)}}" handle-as="json"
+                         last-response="{{currentHardship}}"
+                         on-response="successfulResponse" on-error="errorResponse"></custom-ajax>
+        </template>
+
+        <hardships-card fwpm="[[fwpm]]" on-click="open"></hardships-card>
+
+
+        <paper-dialog id="hardshipDialog" modal>
+            <paper-input value="{{searchString::input}}" label="Suche"><iron-icon icon="search" suffix></iron-icon></paper-input>
+
+            <paper-dialog-scrollable>
+            <template is="dom-repeat" items="[[students]]" filter="{{computeFilter(searchString)}}">
+                <hardships-student-card solve-hardship-url="{{solveHardshipUrl}}" assignment-id="{{assignmentId}}" student="[[item]]" on-solved-hardship="hardshipSolved"></hardships-student-card>
+            </template>
+
+            </paper-dialog-scrollable>
+
+            <div class="buttons">
+                <paper-button on-click="closeDialog">OK</paper-button>
+            </div>
+
+        </paper-dialog>
+
+        <paper-toast class="errorToast" id="errorToast" duration="5000" text="Es ist ein Fehler aufgetreten. Der Härtefall konnte nicht geladen werden."></paper-toast>
+    </template>
+    <script>
+        Polymer({
+            is: 'hardships-handler',
+            properties: {
+                ballotUrl: {
+                    type: String
+                },
+                solveHardshipUrl: {
+                    type: String
+                },
+                assignmentId: {
+                    type: Number
+                },
+                students: {
+                    type: Array,
+                    value: []
+                },
+                currentHardship: {
+                    type: Object
+                },
+                fwpm: {
+                    type: Object
+                },
+                isDialogOpen: {
+                    type: Boolean,
+                    value: false
+                }
+            },
+
+            _computeBallotUrl: function(student) {
+                return this.ballotUrl + student.kNummer;
+            },
+
+            computeFilter: function(query) {
+                if (!query) {
+                    // set filter to null to disable filtering
+                    return null;
+                } else {
+                    // return a filter function for the current search string
+                    query = query.toLowerCase();
+                    return function(item) {
+                        var kNr = item.studentNumber.toLowerCase();
+                        var firstName = item.firstName.toLowerCase();
+                        var lastName = item.lastName.toLowerCase();
+                        return (kNr.indexOf(query) != -1 || firstName.indexOf(query) != -1 || lastName.indexOf(query) != -1);
+                    };
+                }
+            },
+            closeDialog: function () {
+                this.$.hardshipDialog.close();
+                this.fire("reload-fpwms");
+                this.isDialogOpen = false;
+                this.students = [];
+            },
+            open: function () {
+                this.$.hardshipDialog.open();
+                this.students = [];
+                this.isDialogOpen = true;
+            },
+            hardshipSolved: function(e) {
+                this.splice('students', e.model.index, 1);
+            },
+            successfulResponse: function (e, response) {
+                this.push('students', this.currentHardship);
+            },
+            errorResponse: function (e, error) {
+                this.$.errorToast.open();
+                this.currentHardship = undefined;
+            }
+        });
+    </script>
+</dom-module>

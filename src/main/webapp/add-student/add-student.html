@@ -1,0 +1,156 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/paper-button/paper-button.html">
+<link rel="import" href="/fwpm/bower_components/paper-input/paper-input.html">
+<link rel="import" href="/fwpm/bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="/fwpm/bower_components/iron-form/iron-form.html">
+<link rel="import" href="/fwpm/bower_components/paper-dialog/paper-dialog.html">
+<link rel="import" href="/fwpm/bower_components/paper-toast/paper-toast.html">
+<link rel="import" href="/fwpm/bower_components/paper-fab/paper-fab.html">
+<link rel="import" href="/fwpm/custom-ajax.html">
+<script src="/fwpm/scripts/authentication.js"></script>
+
+<dom-module id="add-student">
+    <template>
+        <style>
+            .left {
+                width: 70%;
+                display: inline-block;
+            }
+
+            .right {
+                display: inline-block;
+            }
+
+            paper-fab {
+                --paper-fab-background: #d9534f;
+                position: fixed;
+                right: 20px;
+                bottom: 20px;
+                z-index: 1;
+            }
+
+            paper-button.add {
+                background: #337ab7;
+                color: white;
+                margin: 10px;
+            }
+            paper-dialog {
+                display: block;
+                width: 60%;
+            }
+            #errorToast {
+                --paper-toast-background-color: red;
+                --paper-toast-color: white;
+            }
+        </style>
+
+        <paper-fab on-click="openAddDialog" icon="add"></paper-fab>
+
+        <paper-dialog id="addDialog" modal>
+            <h2>Student zu {{currentFwpm.name}} hinzufügen</h2>
+
+            <paper-input name="kNr" label="K-Nummer" value="{{searchString}}" autofocus class="left"></paper-input>
+
+            <paper-button on-click="search" class="add right">
+                <iron-icon icon="search" class="button-icon"></iron-icon>
+                Student suchen
+            </paper-button>
+
+            <template is="dom-if" if="{{student}}">
+                <div>[[student.firstName]] [[student.lastName]]</div>
+                <div>[[student.eMail]]</div>
+                <div>Semester: [[student.semester]]</div>
+                <div>[[student.major]]</div>
+            </template>
+
+            <div class="buttons">
+                <paper-button on-click="cancel">
+                    Abbrechen
+                </paper-button>
+                <template is="dom-if" if="{{student}}">
+                    <paper-button on-click="submit">
+                        Hinzufügen
+                    </paper-button>
+                </template>
+            </div>
+        </paper-dialog>
+
+        <custom-ajax
+                id="ajax"
+                method="GET"
+                content-type="application/json"
+                handle-as="json"
+                last-response="{{studentResponse}}"
+                on-response="successfulResponse"
+                on-error="errorResponse"
+                debounce-duration="300">
+        </custom-ajax>
+
+        <paper-toast id="errorToast" duration="5000" text="Es konnte kein Student gefunden werden"></paper-toast>
+    </template>
+
+    <script>
+        Polymer({
+
+            is: 'add-student',
+
+            properties: {
+                student: {
+                    type: Object
+                },
+                studentResponse: {
+                    type: Object
+                },
+                url: {
+                    type: String
+                },
+                searchString: {
+                    type: String
+                },
+                studentFindUrl: {
+                    type: String
+                }
+            },
+            openAddDialog: function () {
+                this.$.addDialog.open();
+            },
+            cancel: function () {
+                this.student = undefined;
+                this.searchString = "";
+                this.$.addDialog.close();
+            },
+            submit: function () {
+                this.fire("add-new-student", this.student);
+                this.student = undefined;
+                this.searchString = "";
+                this.$.addDialog.close();
+
+            },
+
+            search: function () {
+                this.url = this.studentFindUrl + this.searchString;
+                this.$.ajax.url = this.url;
+                this.$.ajax.headers = {'X-fhws-jwt-token': getJSONWebToken()};
+                this.$.ajax.generateRequest();
+            }
+            ,
+            successfulResponse: function (e, response) {
+                if (this.studentResponse.role != "student") {
+                    this.$.errorToast.open();
+                } else {
+                    var temp = {"eMail": "", "firstName": "", "kNr": "", "lastName": "", "major": "", "semester": -1};
+                    temp.eMail = this.studentResponse.emailAddress;
+                    temp.firstName = this.studentResponse.firstName;
+                    temp.lastName = this.studentResponse.lastName;
+                    temp.kNummer = this.studentResponse.cn;
+                    temp.major = this.studentResponse.degreeProgram;
+                    temp.semester = this.studentResponse.semester;
+                    this.student = temp;
+                }
+            },
+            errorResponse: function (e, error) {
+                this.$.errorToast.open();
+            }
+        });
+    </script>
+</dom-module>

@@ -1,0 +1,31 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/paper-card/paper-card.html">
+
+<dom-module id="hardships-card">
+    <template>
+        <style>
+            paper-card {
+                background-color: red;
+                margin-top: 1%;
+                width: 100%;
+            }
+        </style>
+
+        <paper-card heading="[[fwpm.title]]">
+            <div class="card-content">
+                <div>Anzahl der Härtefälle: [[fwpm.participants.length]]</div>
+            </div>
+        </paper-card>
+    </template>
+
+    <script>
+        Polymer({
+            is: 'hardships-card',
+            properties: {
+                fwpm: {
+                    type: Object
+                }
+            }
+        });
+    </script>
+</dom-module>

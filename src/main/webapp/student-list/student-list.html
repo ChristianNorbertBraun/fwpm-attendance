@@ -1,0 +1,153 @@
+<link rel="import" href="/fwpm/bower_components/polymer/polymer.html">
+<link rel="import" href="/fwpm/bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="/fwpm/bower_components/paper-button/paper-button.html">
+<link rel="import" href="/fwpm/bower_components/paper-input/paper-input.html">
+<link rel="import" href="/fwpm/bower_components/paper-dialog/paper-dialog.html">
+<link rel="import" href="/fwpm/bower_components/paper-toast/paper-toast.html">
+<link rel="import" href="/fwpm/custom-ajax.html">
+
+<link rel="import" href="../student-card/student-card.html">
+
+<dom-module id="student-list">
+    <template>
+        <style>
+            :host  {
+                display: block;
+                padding: 1%;
+            }
+
+            paper-button {
+                padding-right: 15px;
+            }
+
+            paper-button.delete {
+                margin-bottom: 4px;
+                background: #d9534f;
+                color: white;
+            }
+
+            .buttons {
+                float: right;
+            }
+
+            .errorToast {
+                --paper-toast-background-color: red;
+                --paper-toast-color: white;
+            }
+        </style>
+
+        <custom-ajax
+                auth
+                id="removeStudentAjax"
+                method="DELETE"
+                url="{{removeStudentUrl}}"
+                content-type="application/json"
+                handle-as="json"
+                on-response="successfulResponse"
+                on-error="errorResponse"
+                debounce-duration="300">
+        </custom-ajax>
+
+
+        <paper-input value="{{searchString::input}}" label="Studentsuche">
+            <iron-icon icon="search" suffix></iron-icon>
+        </paper-input>
+
+        <div id="scrollable-student-list" style="overflow: auto;">
+            <template scroll-target="scrollable-student-list" is="dom-repeat" items="{{students}}" filter="{{computeFilter(searchString)}}">
+                <student-card student="[[item]]">
+                    <div class="buttons">
+                        <paper-button on-click="openDeleteDialog" class="delete">
+                            <iron-icon icon="delete" class="button-icon"></iron-icon>
+                            Löschen
+                        </paper-button>
+                    </div>
+
+                </student-card>
+            </template>
+        </div>
+
+
+        <paper-dialog id="deleteDialog" modal>
+            <h2>Wirklich löschen?</h2>
+
+            <div>Wollen Sie den Student <b>[[studentToDelete.kNr]] [[studentToDelete.firstName]] [[studentToDelete.lastName]]</b> wirklich
+                löschen
+            </div>
+            <div class="buttons">
+                <paper-button on-click="closeDialog">Abbrechen</paper-button>
+                <paper-button on-click="deleteStudent">Löschen</paper-button>
+            </div>
+        </paper-dialog>
+
+        <paper-toast class="errorToast" id="removeStudentErrorToast" duration="5000"
+                     text="Es ist ein Fehler aufgetreten. Der Student konnte nicht entfernt werden."></paper-toast>
+    </template>
+
+    <script>
+        Polymer({
+
+            is: 'student-list',
+
+            properties: {
+                removeStudentUrl: {
+                    type: String
+                },
+                students: {
+                    type: Array
+                },
+                studentToDelete: {
+                    type: Object
+                },
+                fwpmId: {
+                    type: String
+                },
+                assignmentId: {
+                    type: String
+                }
+            },
+            computeFilter: function (query) {
+                if (!query) {
+                    // set filter to null to disable filtering
+                    return null;
+                } else {
+                    // return a filter function for the current search string
+                    query = query.toLowerCase();
+                    return function (item) {
+                        var kNr = item.kNummer.toLowerCase();
+                        var firstName = item.firstName.toLowerCase();
+                        var lastName = item.lastName.toLowerCase();
+                        return (kNr.indexOf(query) != -1 || firstName.indexOf(query) != -1 || lastName.indexOf(query) != -1);
+                    };
+                }
+            },
+            openDeleteDialog: function (e) {
+                var student = e.model.item;
+                student.index = e.model.index;
+                this.studentToDelete = student;
+                this.$.deleteDialog.open();
+            },
+
+            closeDialog: function () {
+                this.studentToDelete = "";
+                this.$.deleteDialog.close();
+            },
+
+            deleteStudent: function (e) {
+                this.removeStudentUrl = this.removeStudentUrl.replace("{assignmentId}", this.assignmentId).replace("{fwpmId}", this.fwpmId).replace("{kNummer}", this.studentToDelete.kNummer);
+                this.$.removeStudentAjax.generateRequest();
+                this.$.deleteDialog.close();
+            },
+
+            successfulResponse: function (e, response) {
+                this.splice('students', this.studentToDelete.index, 1);
+                this.studentToDelete = "";
+                this.fire("studentDeleted");
+            },
+            errorResponse: function (e, error) {
+                this.$.removeStudentErrorToast.open();
+                this.studentToDelete = "";
+            }
+        });
+    </script>
+</dom-module>
